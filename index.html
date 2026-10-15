@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Землекоп</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',Roboto,Arial,sans-serif;touch-action:none;background:#87ceeb}
+  canvas{display:block;position:fixed;top:0;left:0;z-index:1}
+  #err{position:fixed;top:0;left:0;right:0;z-index:9999;background:#c0392b;color:#fff;padding:14px;font:13px monospace;display:none;white-space:pre-wrap;word-break:break-word;max-height:40vh;overflow:auto}
+  #err.on{display:block}
+  #fps{position:fixed;top:60px;right:10px;z-index:70;background:rgba(0,0,0,.7);color:#0f0;padding:4px 10px;border-radius:20px;font:12px monospace;font-weight:bold;display:none}
+
+  #menu{position:fixed;inset:0;z-index:100;background:linear-gradient(#87ceeb 0%,#a7d8f0 50%,#7bb26a 50%,#4a7a3a 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;color:#fff}
+  #menu.hide{display:none}
+  #menu h1{font-size:clamp(2rem,8vw,4rem);color:#fff;letter-spacing:5px;text-shadow:0 4px 0 #4a3020,0 6px 0 #2a1a10,0 0 30px rgba(255,220,120,.6);margin-bottom:8px}
+  #menu .sub{color:#fff8d0;letter-spacing:3px;margin-bottom:34px;font-size:clamp(.75rem,2.3vw,1rem);text-shadow:0 2px 4px rgba(0,0,0,.5)}
+  .btn{min-width:250px;padding:16px 28px;font-size:clamp(.95rem,3.6vw,1.1rem);font-weight:800;letter-spacing:2px;border:3px solid #fff3b0;border-radius:14px;background:linear-gradient(#ffd966,#e0a800);color:#2d1a07;box-shadow:0 8px 0 #8a5a10,0 12px 22px rgba(0,0,0,.5);cursor:pointer;margin:8px 0;font-family:inherit}
+  .btn:active{transform:translateY(6px);box-shadow:0 2px 0 #8a5a10}
+  .btn.blue{background:linear-gradient(#78b9e6,#3a86c9);color:#0d2338;box-shadow:0 8px 0 #1e4f7a}
+  .btn.blue:active{box-shadow:0 2px 0 #1e4f7a}
+  .btn:disabled{background:#777;color:#bbb;box-shadow:0 8px 0 #333;cursor:not-allowed}
+  .hint{margin-top:22px;color:#fff;font-size:12px;line-height:1.8;max-width:420px;background:rgba(0,0,0,.5);padding:12px 18px;border-radius:12px}
+  .hint b{color:#ffd966}
+
+  #hud{position:fixed;inset:0;z-index:50;pointer-events:none;display:none}
+  #hud.on{display:block}
+  .topstats{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:5px;flex-wrap:wrap;justify-content:center;padding:0 6px;max-width:100vw}
+  .stat{background:rgba(0,0,0,.65);border:2px solid #b98a4b;border-radius:30px;padding:4px 10px;display:flex;align-items:center;gap:5px;font-weight:800;color:#fff2c9;font-size:13px}
+  .stat .ic{font-size:14px}
+  #cross{position:absolute;top:50%;left:50%;width:24px;height:24px;transform:translate(-50%,-50%);opacity:.9}
+  #cross::before,#cross::after{content:'';position:absolute;background:#fff;box-shadow:0 0 3px #000}
+  #cross::before{left:50%;top:0;width:2px;height:100%;transform:translateX(-50%)}
+  #cross::after{top:50%;left:0;height:2px;width:100%;transform:translateY(-50%)}
+  #targetInfo{position:absolute;top:calc(50% + 28px);left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);border:2px solid #b98a4b;border-radius:20px;padding:5px 14px;color:#fff2c9;font-weight:700;font-size:13px;opacity:0;white-space:nowrap}
+  #targetInfo.on{opacity:1}
+  #hpWrap{position:absolute;top:calc(50% + 58px);left:50%;transform:translateX(-50%);width:200px;max-width:55vw;display:none}
+  #hpWrap.on{display:block}
+  #hpBar{width:100%;height:12px;background:rgba(0,0,0,.7);border:2px solid #b6813e;border-radius:40px;overflow:hidden}
+  #hpFill{height:100%;width:100%;background:linear-gradient(90deg,#9bff9b,#3ba13b)}
+  #toast{position:absolute;top:60px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);border:2px solid #ffd966;border-radius:24px;padding:6px 18px;color:#ffd966;font-weight:700;font-size:13px;opacity:0;white-space:nowrap}
+  #toast.on{opacity:1}
+
+  #mob{position:fixed;inset:0;z-index:60;display:none;pointer-events:none}
+  #mob.on{display:block}
+  #joy{position:absolute;left:20px;bottom:30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.5);pointer-events:auto;touch-action:none}
+  #joyKnob{position:absolute;top:50%;left:50%;width:52px;height:52px;border-radius:50%;background:rgba(255,220,100,.95);border:2px solid #fff3b0;transform:translate(-50%,-50%);box-shadow:0 4px 12px rgba(0,0,0,.6);pointer-events:none}
+  #look{position:absolute;right:0;top:0;width:60%;height:100%;pointer-events:auto;touch-action:none}
+  .acts{position:absolute;right:18px;bottom:28px;display:flex;flex-direction:column;gap:12px;pointer-events:none}
+  .abtn{width:74px;height:74px;border-radius:50%;background:linear-gradient(#ffd966,#e0a800);border:3px solid #fff3b0;color:#2d1a07;font-size:1.9rem;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 0 #8a5a10,0 8px 16px rgba(0,0,0,.6);pointer-events:auto;touch-action:manipulation;font-weight:900}
+  .abtn:active{transform:translateY(4px);box-shadow:0 2px 0 #8a5a10}
+  .abtn.jump{background:linear-gradient(#78b9e6,#3a86c9);border-color:#c2e2ff;box-shadow:0 6px 0 #1e4f7a;font-size:1.4rem}
+  .abtn.jump:active{box-shadow:0 2px 0 #1e4f7a}
+  #pauseM{position:absolute;top:10px;right:10px;width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.6);border:2px solid #b98a4b;color:#fff2c9;font-size:1.1rem;display:flex;align-items:center;justify-content:center;pointer-events:auto}
+
+  #pause{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.88);display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;color:#fff}
+  #pause.on{display:flex}
+  #pause h2{font-size:clamp(1.8rem,7vw,2.6rem);color:#ffd966;margin-bottom:28px;letter-spacing:5px;text-shadow:0 3px 0 #5a3e1a}
+  #lockHint{position:fixed;top:0;left:0;right:0;z-index:70;background:rgba(255,180,60,.95);color:#221100;text-align:center;padding:10px;font-weight:800;letter-spacing:1px;display:none;font-size:14px}
+  #lockHint.on{display:block}
+</style>
+</head>
+<body>
+
+<div id="err"></div>
+<div id="fps">FPS</div>
+
+<div id="menu">
+  <h1>⛏️ Землекоп</h1>
+  <div class="sub">БЕСКОНЕЧНЫЙ МИР</div>
+  <button class="btn" id="playBtn" type="button">▶ ИГРАТЬ</button>
+  <button class="btn blue" id="contBtn" type="button" disabled>💾 ПРОДОЛЖИТЬ</button>
+  <div class="hint" id="hintD">
+    <b>WASD</b> — идти | <b>Мышь</b> — обзор<br>
+    <b>ЛКМ</b> — копать | <b>Пробел</b> — прыжок<br>
+    <b>Shift</b> — бежать | <b>Esc</b> — пауза
+  </div>
+  <div class="hint" id="hintM" style="display:none">
+    <b>Джойстик</b> — идти | <b>Свайп справа</b> — обзор<br>
+    <b>⛏️</b> — копать | <b>⤴</b> — прыжок
+  </div>
+</div>
+
+<div id="hud">
+  <div class="topstats">
+    <div class="stat"><span class="ic">🪙</span><span id="uiMoney">0</span></div>
+    <div class="stat"><span class="ic">⛏️</span><span id="uiLevel">1</span></div>
+    <div class="stat"><span class="ic">💪</span><span id="uiDamage">1</span></div>
+    <div class="stat"><span class="ic">📏</span><span id="uiDepth">0м</span></div>
+    <div class="stat"><span class="ic">🧭</span><span id="uiPos">0,0</span></div>
+  </div>
+  <div id="cross"></div>
+  <div id="targetInfo"></div>
+  <div id="hpWrap"><div id="hpBar"><div id="hpFill"></div></div></div>
+  <div id="toast"></div>
+</div>
+
+<div id="mob">
+  <div id="look"></div>
+  <div id="joy"><div id="joyKnob"></div></div>
+  <div class="acts">
+    <div class="abtn jump" id="jumpBtn">⤴</div>
+    <div class="abtn" id="mineBtn">⛏️</div>
+  </div>
+  <div id="pauseM">⏸</div>
+</div>
+
+<div id="pause">
+  <h2>ПАУЗА</h2>
+  <button class="btn" id="resumeBtn" type="button">▶ ПРОДОЛЖИТЬ</button>
+  <button class="btn blue" id="menuBtn" type="button">🏠 В МЕНЮ</button>
+</div>
+
+<div id="lockHint">🖱️ Кликни по экрану, чтобы захватить мышь</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+(function(){
+  var errBox = document.getElementById('err');
+  function showErr(msg){
+    errBox.textContent = 'ОШИБКА: ' + msg;
+    errBox.classList.add('on');
+  }
+  window.addEventListener('error', function(e){
+    showErr((e.message||'?') + ' @ ' + (e.filename||'') + ':' + (e.lineno||''));
+  });
+  window.__showErr = showErr;
+})();
+
+window.addEventListener('load', function(){
+  if (typeof THREE === 'undefined'){
+    window.__showErr('Three.js не загрузился. Нужен интернет.');
+    return;
+  }
+  try { boot(); } catch(e){ window.__showErr(e.message + '\n' + (e.stack||'')); }
+});
+
+function boot(){
+
+var IS_MOB = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  || (('ontouchstart' in window) && window.innerWidth < 1024);
+
+if (IS_MOB){
+  document.getElementById('hintD').style.display = 'none';
+  document.getElementById('hintM').style.display = 'block';
+}
+
+// ============================================================
+//   СЦЕНА
+// ============================================================
+var scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0xb8d8ee, 30, 70);
+
+var camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 200);
+
+var renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(1);
+renderer.shadowMap.enabled = false;
+document.body.appendChild(renderer.domElement);
+var canvas = renderer.domElement;
+
+// ============================================================
+//   СВЕТ
+// ============================================================
+scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x6a5a3a, 0.7));
+
+var sun = new THREE.DirectionalLight(0xfff2cc, 0.55);
+sun.position.set(40, 80, 30);
+scene.add(sun);
+scene.add(sun.target);
+
+var playerLight = new THREE.PointLight(0xffd88a, 1.2, 12, 1.6);
+playerLight.position.set(0, 2, 0);
+scene.add(playerLight);
+
+// ============================================================
+//   БЛОКИ
+// ============================================================
+var BLOCK_TYPES = {
+  grass:   { name:'Трава',   hp:3,    reward:1,  color:0x5fa347, icon:'🟩' },
+  dirt:    { name:'Земля',   hp:4,    reward:1,  color:0x8b6239, icon:'🟫' },
+  sand:    { name:'Песок',   hp:3,    reward:1,  color:0xd9c580, icon:'🟨' },
+  log:     { name:'Бревно',  hp:5,    reward:2,  color:0x6b4a2a, icon:'🪵' },
+  leaves:  { name:'Листва',  hp:2,    reward:1,  color:0x2e7a2e, icon:'🍃' },
+  stone:   { name:'Камень',  hp:7,    reward:3,  color:0x9a9a9a, icon:'🪨' },
+  coal:    { name:'Уголь',   hp:15,   reward:8,  color:0x2a2a2a, icon:'⬛' },
+  iron:    { name:'Железо',  hp:25,   reward:15, color:0xd4a76a, icon:'🔩' },
+  gold:    { name:'Золото',  hp:40,   reward:30, color:0xffd966, icon:'🥇' },
+  diamond: { name:'Алмаз',   hp:70,   reward:60, color:0x7ee7ff, icon:'💎' },
+  bedrock: { name:'Бедрок',  hp:Infinity, reward:0, color:0x2a2a2a, icon:'⬛' }
+};
+
+// ============================================================
+//   ПАРАМЕТРЫ
+// ============================================================
+var BS = 1.0;                  // размер блока ровно 1 (как в майне) — прыжок считается проще
+var CHUNK_SIZE = 8;
+var CHUNK_DEPTH = 16;
+var SURFACE_Y = 2;
+var BEDROCK_Y = -CHUNK_DEPTH;
+var RENDER_DISTANCE = IS_MOB ? 1 : 2;
+var TREE_CHANCE = 0.04;
+
+// Физика
+var GRAVITY = 26;              // сила притяжения
+var JUMP_SPEED = 8.2;          // скорость прыжка → высота ~1.3 блока, легко перепрыгнуть 1
+var MOVE_SPEED = 4.8;
+var RUN_SPEED = 7.5;
+var STEP_HEIGHT = 1.05;        // автоподъём на ступеньку до 1 блока
+var MAX_FALL = 32;
+
+var chunks = {};
+var chunkKeys = [];
+
+function k(x,y,z){ return x+','+y+','+z; }
+
+var matCache = {};
+function getMat(type){
+  if (!matCache[type]){
+    matCache[type] = new THREE.MeshLambertMaterial({ color: BLOCK_TYPES[type].color });
+  }
+  return matCache[type];
+}
+
+// ============================================================
+//   ШУМ
+// ============================================================
+function hash2(x, y){
+  var h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return h - Math.floor(h);
+}
+function noise2(x, y){
+  var xi = Math.floor(x), yi = Math.floor(y);
+  var xf = x - xi, yf = y - yi;
+  var u = xf * xf * (3 - 2 * xf);
+  var v = yf * yf * (3 - 2 * yf);
+  var a = hash2(xi, yi);
+  var b = hash2(xi+1, yi);
+  var c = hash2(xi, yi+1);
+  var d = hash2(xi+1, yi+1);
+  return a*(1-u)*(1-v) + b*u*(1-v) + c*(1-u)*v + d*u*v;
+}
+function fbm(x, y){
+  var v = 0, amp = 1, freq = 1, total = 0;
+  for (var i=0; i<3; i++){
+    v += noise2(x*freq, y*freq) * amp;
+    total += amp;
+    amp *= 0.5;
+    freq *= 2;
+  }
+  return v / total;
+}
+
+function oreAt(gx, gy, gz){
+  var depth = SURFACE_Y - gy;
+  var r = hash2(gx * 3.7 + gz * 1.3, gy * 5.1);
+  if (depth < 2) return 'stone';
+  if (depth < 4){
+    if (r < 0.10) return 'coal';
+    if (r < 0.18) return 'iron';
+    return 'stone';
+  }
+  if (depth < 8){
+    if (r < 0.15) return 'coal';
+    if (r < 0.32) return 'iron';
+    if (r < 0.42) return 'gold';
+    return 'stone';
+  }
+  if (r < 0.12) return 'coal';
+  if (r < 0.30) return 'iron';
+  if (r < 0.48) return 'gold';
+  if (r < 0.60) return 'diamond';
+  return 'stone';
+}
+
+function surfaceHeightAt(gx, gz){
+  var n = fbm(gx * 0.08, gz * 0.08);
+  var n2 = fbm(gx * 0.02 + 100, gz * 0.02 + 100);
+  var h = (n * 2.5) + (n2 * 3.5);
+  return SURFACE_Y + Math.round(h) - 2;
+}
+
+// ============================================================
+//   ГЕНЕРАЦИЯ
+// ============================================================
+function generateChunkData(cx, cz){
+  var key = cx + ',' + cz;
+  if (chunks[key]) return;
+  var chunk = { cx: cx, cz: cz, blocks: {}, mesh: null };
+  var bx0 = cx * CHUNK_SIZE;
+  var bz0 = cz * CHUNK_SIZE;
+
+  for (var lx = 0; lx < CHUNK_SIZE; lx++){
+    for (var lz = 0; lz < CHUNK_SIZE; lz++){
+      var gx = bx0 + lx;
+      var gz = bz0 + lz;
+      var h = surfaceHeightAt(gx, gz);
+      var topType = h >= SURFACE_Y + 2 ? 'sand' : 'grass';
+      for (var gy = h; gy >= BEDROCK_Y; gy--){
+        var type;
+        if (gy === BEDROCK_Y) type = 'bedrock';
+        else if (gy === h) type = topType;
+        else if (gy > h - 3) type = (topType === 'sand') ? 'sand' : 'dirt';
+        else type = oreAt(gx, gy, gz);
+        chunk.blocks[lx + ',' + gy + ',' + lz] = type;
+      }
+    }
+  }
+
+  for (var tx = 0; tx < CHUNK_SIZE; tx++){
+    for (var tz = 0; tz < CHUNK_SIZE; tz++){
+      var gx2 = bx0 + tx;
+      var gz2 = bz0 + tz;
+      var h2 = surfaceHeightAt(gx2, gz2);
+      if (h2 >= SURFACE_Y + 2) continue;
+      var treeRoll = hash2(gx2 * 7.3, gz2 * 3.1);
+      if (treeRoll < TREE_CHANCE){
+        var blocked = false;
+        for (var ddx = -1; ddx <= 1; ddx++){
+          for (var ddz = -1; ddz <= 1; ddz++){
+            if (ddx === 0 && ddz === 0) continue;
+            var nn = hash2((gx2+ddx) * 7.3, (gz2+ddz) * 3.1);
+            if (nn < TREE_CHANCE) { blocked = true; break; }
+          }
+          if (blocked) break;
+        }
+        if (blocked) continue;
+        for (var t = 1; t <= 4; t++) chunk.blocks[tx + ',' + (h2+t) + ',' + tz] = 'log';
+        for (var llx = -1; llx <= 1; llx++){
+          for (var llz = -1; llz <= 1; llz++){
+            if (Math.abs(llx) === 1 && Math.abs(llz) === 1) continue;
+            var key2a = (tx+llx) + ',' + (h2+4) + ',' + (tz+llz);
+            var key2b = (tx+llx) + ',' + (h2+5) + ',' + (tz+llz);
+            if (!chunk.blocks[key2a]) chunk.blocks[key2a] = 'leaves';
+            if (!chunk.blocks[key2b]) chunk.blocks[key2b] = 'leaves';
+          }
+        }
+        var topKey = tx + ',' + (h2+6) + ',' + tz;
+        if (!chunk.blocks[topKey]) chunk.blocks[topKey] = 'leaves';
+      }
+    }
+  }
+
+  chunks[key] = chunk;
+  chunkKeys.push(key);
+}
+
+// ============================================================
+//   СОСЕД
+// ============================================================
+function blockExists(chunk, lx, ly, lz){
+  var t = chunk.blocks[lx + ',' + ly + ',' + lz];
+  if (t) return true;
+  var ccx = chunk.cx, ccz = chunk.cz, nlx = lx, nlz = lz;
+  if (lx < 0){ ccx--; nlx = lx + CHUNK_SIZE; }
+  else if (lx >= CHUNK_SIZE){ ccx++; nlx = lx - CHUNK_SIZE; }
+  if (lz < 0){ ccz--; nlz = lz + CHUNK_SIZE; }
+  else if (lz >= CHUNK_SIZE){ ccz++; nlz = lz - CHUNK_SIZE; }
+  if (ccx === chunk.cx && ccz === chunk.cz) return false;
+  var nc = chunks[ccx + ',' + ccz];
+  if (!nc) return false;
+  return !!nc.blocks[nlx + ',' + ly + ',' + nlz];
+}
+
+// ============================================================
+//   МЕШ
+// ============================================================
+function buildChunkMesh(chunk){
+  if (chunk.mesh){
+    for (var mi = 0; mi < chunk.mesh.length; mi++){
+      scene.remove(chunk.mesh[mi]);
+      chunk.mesh[mi].geometry.dispose();
+    }
+    chunk.mesh = null;
+  }
+  var byType = {};
+  var FACES = [
+    { n: [1,0,0],  v: [[0.5,-0.5,-0.5],[0.5,0.5,-0.5],[0.5,0.5,0.5],[0.5,-0.5,0.5]] },
+    { n: [-1,0,0], v: [[-0.5,-0.5,0.5],[-0.5,0.5,0.5],[-0.5,0.5,-0.5],[-0.5,-0.5,-0.5]] },
+    { n: [0,1,0],  v: [[-0.5,0.5,0.5],[0.5,0.5,0.5],[0.5,0.5,-0.5],[-0.5,0.5,-0.5]] },
+    { n: [0,-1,0], v: [[-0.5,-0.5,-0.5],[0.5,-0.5,-0.5],[0.5,-0.5,0.5],[-0.5,-0.5,0.5]] },
+    { n: [0,0,1],  v: [[-0.5,-0.5,0.5],[0.5,-0.5,0.5],[0.5,0.5,0.5],[-0.5,0.5,0.5]] },
+    { n: [0,0,-1], v: [[0.5,-0.5,-0.5],[-0.5,-0.5,-0.5],[-0.5,0.5,-0.5],[0.5,0.5,-0.5]] }
+  ];
+
+  for (var key in chunk.blocks){
+    var parts = key.split(',');
+    var lx = +parts[0], ly = +parts[1], lz = +parts[2];
+    var type = chunk.blocks[key];
+    if (!type) continue;
+    var gx = chunk.cx * CHUNK_SIZE + lx;
+    var gz = chunk.cz * CHUNK_SIZE + lz;
+    if (!byType[type]) byType[type] = { positions: [], normals: [], indices: [], vertCount: 0 };
+    var buf = byType[type];
+    var visible = [
+      !blockExists(chunk, lx+1, ly, lz),
+      !blockExists(chunk, lx-1, ly, lz),
+      !blockExists(chunk, lx, ly+1, lz),
+      !blockExists(chunk, lx, ly-1, lz),
+      !blockExists(chunk, lx, ly, lz+1),
+      !blockExists(chunk, lx, ly, lz-1)
+    ];
+    var bx = gx * BS;
+    var by = ly * BS + BS/2;
+    var bz = gz * BS;
+    for (var f = 0; f < 6; f++){
+      if (!visible[f]) continue;
+      var face = FACES[f];
+      var base = buf.vertCount;
+      for (var v = 0; v < 4; v++){
+        buf.positions.push(bx + face.v[v][0]*BS, by + face.v[v][1]*BS, bz + face.v[v][2]*BS);
+        buf.normals.push(face.n[0], face.n[1], face.n[2]);
+      }
+      buf.indices.push(base, base+1, base+2, base, base+2, base+3);
+      buf.vertCount += 4;
+    }
+  }
+
+  var meshes = [];
+  for (var t2 in byType){
+    var b = byType[t2];
+    if (b.positions.length === 0) continue;
+    var g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(b.positions, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(b.normals, 3));
+    g.setIndex(b.indices);
+    var m = new THREE.Mesh(g, getMat(t2));
+    m.userData.chunkKey = chunk.cx + ',' + chunk.cz;
+    scene.add(m);
+    meshes.push(m);
+  }
+  chunk.mesh = meshes;
+}
+
+// ============================================================
+//   ЧАНКИ
+// ============================================================
+function updateChunks(px, pz){
+  var ccx = Math.floor(px / (CHUNK_SIZE * BS));
+  var ccz = Math.floor(pz / (CHUNK_SIZE * BS));
+  var needed = {};
+  var toBuild = [];
+  for (var dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++){
+    for (var dz = -RENDER_DISTANCE; dz <= RENDER_DISTANCE; dz++){
+      var key = (ccx+dx) + ',' + (ccz+dz);
+      needed[key] = true;
+      if (!chunks[key]){
+        generateChunkData(ccx+dx, ccz+dz);
+        toBuild.push(chunks[key]);
+      }
+    }
+  }
+  for (var i = 0; i < toBuild.length; i++){
+    if (toBuild[i]) buildChunkMesh(toBuild[i]);
+  }
+  for (var j = chunkKeys.length - 1; j >= 0; j--){
+    var kk = chunkKeys[j];
+    if (!needed[kk]){
+      var c = chunks[kk];
+      if (c && c.mesh){
+        for (var m = 0; m < c.mesh.length; m++){
+          scene.remove(c.mesh[m]);
+          c.mesh[m].geometry.dispose();
+        }
+      }
+      delete chunks[kk];
+      chunkKeys.splice(j, 1);
+    }
+  }
+}
+
+function rebuildChunkAt(gx, gz){
+  var ccx = Math.floor(gx / CHUNK_SIZE);
+  var ccz = Math.floor(gz / CHUNK_SIZE);
+  var c = chunks[ccx + ',' + ccz];
+  if (c) buildChunkMesh(c);
+  var lx = gx - ccx * CHUNK_SIZE;
+  var lz = gz - ccz * CHUNK_SIZE;
+  if (lx === 0){ var n = chunks[(ccx-1) + ',' + ccz]; if (n) buildChunkMesh(n); }
+  if (lx === CHUNK_SIZE-1){ var n2 = chunks[(ccx+1) + ',' + ccz]; if (n2) buildChunkMesh(n2); }
+  if (lz === 0){ var n3 = chunks[ccx + ',' + (ccz-1)]; if (n3) buildChunkMesh(n3); }
+  if (lz === CHUNK_SIZE-1){ var n4 = chunks[ccx + ',' + (ccz+1)]; if (n4) buildChunkMesh(n4); }
+}
+
+// ============================================================
+//   ДОСТУП
+// ============================================================
+function getBlockAt(gx, gy, gz){
+  var ccx = Math.floor(gx / CHUNK_SIZE);
+  var ccz = Math.floor(gz / CHUNK_SIZE);
+  var c = chunks[ccx + ',' + ccz];
+  if (!c) return null;
+  var lx = gx - ccx * CHUNK_SIZE;
+  var lz = gz - ccz * CHUNK_SIZE;
+  return c.blocks[lx + ',' + gy + ',' + lz] || null;
+}
+function setBlockAt(gx, gy, gz, type){
+  var ccx = Math.floor(gx / CHUNK_SIZE);
+  var ccz = Math.floor(gz / CHUNK_SIZE);
+  var c = chunks[ccx + ',' + ccz];
+  if (!c) return false;
+  var lx = gx - ccx * CHUNK_SIZE;
+  var lz = gz - ccz * CHUNK_SIZE;
+  if (type === null) delete c.blocks[lx + ',' + gy + ',' + lz];
+  else c.blocks[lx + ',' + gy + ',' + lz] = type;
+  return true;
+}
+
+var blockHP = {};
+function getBlockHP(gx,gy,gz){
+  var key = k(gx,gy,gz);
+  if (blockHP[key] === undefined){
+    var t = getBlockAt(gx,gy,gz);
+    if (!t) return null;
+    blockHP[key] = BLOCK_TYPES[t].hp;
+  }
+  return blockHP[key];
+}
+function setBlockHP(gx,gy,gz,hp){ blockHP[k(gx,gy,gz)] = hp; }
+function delBlockHP(gx,gy,gz){ delete blockHP[k(gx,gy,gz)]; }
+
+// ============================================================
+//   ИГРОК
+// ============================================================
+var player = {
+  pos: new THREE.Vector3(0.5, 20, 0.5),
+  vy: 0, yaw: 0, pitch: 0, onGround: false,
+  h: 1.7, r: 0.32
+};
+
+var keys = {};
+var state = { money:0, level:1, mined:0, mode:'menu' };
+var chunkTimer = 0;
+
+// ============================================================
+//   ФИЗИКА
+// ============================================================
+function hasBlock(gx, gy, gz){ return getBlockAt(gx, gy, gz) !== null; }
+
+// Проверка: может ли AABB игрока стоять в позиции p (без проверки врезания по Y при step-up)
+function canMove(p, ignoreY){
+  var minX = Math.floor((p.x - player.r) / BS);
+  var maxX = Math.floor((p.x + player.r) / BS);
+  var minZ = Math.floor((p.z - player.r) / BS);
+  var maxZ = Math.floor((p.z + player.r) / BS);
+  var minY = Math.floor(p.y / BS);
+  var maxY = Math.floor((p.y + player.h) / BS);
+  for (var bx = minX; bx <= maxX; bx++){
+    for (var bz = minZ; bz <= maxZ; bz++){
+      for (var by = minY; by <= maxY; by++){
+        if (!hasBlock(bx, by, bz)) continue;
+        var bminX = bx * BS, bmaxX = bminX + BS;
+        var bminZ = bz * BS, bmaxZ = bminZ + BS;
+        var bminY = by * BS, bmaxY = bminY + BS;
+        var pminX = p.x - player.r, pmaxX = p.x + player.r;
+        var pminZ = p.z - player.r, pmaxZ = p.z + player.r;
+        var pminY = p.y,             pmaxY = p.y + player.h;
+        if (pmaxX > bminX + 1e-4 && pminX < bmaxX - 1e-4 &&
+            pmaxY > bminY + 1e-4 && pminY < bmaxY - 1e-4 &&
+            pmaxZ > bminZ + 1e-4 && pminZ < bmaxZ - 1e-4){
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+// Проверка: можно ли поставить игрока в позицию p (с учётом авто-подъёма)
+function tryMoveWithStepUp(basePos, dx, dz){
+  var test = basePos.clone();
+  test.x += dx;
+  test.z += dz;
+  // Пробуем как есть
+  if (canMove(test)) return test;
+
+  // Пробуем поднять на STEP_HEIGHT
+  var stepped = test.clone();
+  stepped.y += STEP_HEIGHT;
+  if (canMove(stepped)){
+    // Проверим, что после поднятия мы не врезаемся в потолок и есть опора
+    return stepped;
+  }
+  return null;
+}
+
+function findSpawnY(gx, gz){
+  for (var y = 60; y >= BEDROCK_Y; y--){
+    if (!hasBlock(gx, y, gz) && hasBlock(gx, y-1, gz)) return y;
+  }
+  return SURFACE_Y + 3;
+}
+
+// ============================================================
+//   УПРАВЛЕНИЕ
+// ============================================================
+var input = { mx:0, my:0, lookX:0, lookY:0 };
+
+function setupMobile(){
+  var joy = document.getElementById('joy');
+  var knob = document.getElementById('joyKnob');
+  var look = document.getElementById('look');
+
+  var jid = null, jcx = 0, jcy = 0, R = 46;
+  function jStart(e){
+    e.preventDefault();
+    var t = e.changedTouches[0];
+    jid = t.identifier;
+    var rect = joy.getBoundingClientRect();
+    jcx = rect.left + rect.width/2;
+    jcy = rect.top + rect.height/2;
+    jMove(e);
+  }
+  function jMove(e){
+    if (jid === null) return;
+    for (var i=0; i<e.changedTouches.length; i++){
+      var t = e.changedTouches[i];
+      if (t.identifier !== jid) continue;
+      var dx = t.clientX - jcx, dy = t.clientY - jcy;
+      var d = Math.sqrt(dx*dx+dy*dy);
+      if (d > R){ dx = dx/d*R; dy = dy/d*R; }
+      knob.style.transform = 'translate(calc(-50% + '+dx+'px), calc(-50% + '+dy+'px))';
+      input.mx = dx/R; input.my = -dy/R;
+    }
+  }
+  function jEnd(e){
+    for (var i=0; i<e.changedTouches.length; i++){
+      if (e.changedTouches[i].identifier === jid){
+        jid = null;
+        knob.style.transform = 'translate(-50%,-50%)';
+        input.mx = 0; input.my = 0;
+      }
+    }
+  }
+  joy.addEventListener('touchstart', jStart, {passive:false});
+  joy.addEventListener('touchmove', jMove, {passive:false});
+  joy.addEventListener('touchend', jEnd, {passive:false});
+  joy.addEventListener('touchcancel', jEnd, {passive:false});
+
+  var lid = null, lx = 0, ly = 0;
+  function lStart(e){
+    e.preventDefault();
+    var t = e.changedTouches[0];
+    lid = t.identifier; lx = t.clientX; ly = t.clientY;
+  }
+  function lMove(e){
+    if (lid === null) return;
+    for (var i=0; i<e.changedTouches.length; i++){
+      var t = e.changedTouches[i];
+      if (t.identifier !== lid) continue;
+      input.lookX += t.clientX - lx;
+      input.lookY += t.clientY - ly;
+      lx = t.clientX; ly = t.clientY;
+    }
+  }
+  function lEnd(e){
+    for (var i=0; i<e.changedTouches.length; i++)
+      if (e.changedTouches[i].identifier === lid) lid = null;
+  }
+  look.addEventListener('touchstart', lStart, {passive:false});
+  look.addEventListener('touchmove', lMove, {passive:false});
+  look.addEventListener('touchend', lEnd, {passive:false});
+  look.addEventListener('touchcancel', lEnd, {passive:false});
+
+  var mt = null;
+  function startMine(e){
+    e.preventDefault();
+    mineAtCrosshair();
+    if (mt) clearInterval(mt);
+    mt = setInterval(mineAtCrosshair, 220);
+  }
+  function stopMine(){ if (mt){ clearInterval(mt); mt = null; } }
+  document.getElementById('mineBtn').addEventListener('touchstart', startMine, {passive:false});
+  document.getElementById('mineBtn').addEventListener('touchend', stopMine, {passive:false});
+  document.getElementById('mineBtn').addEventListener('touchcancel', stopMine, {passive:false});
+
+  document.getElementById('jumpBtn').addEventListener('touchstart', function(e){
+    e.preventDefault();
+    if (player.onGround){ player.vy = JUMP_SPEED; player.onGround = false; }
+  }, {passive:false});
+
+  document.getElementById('pauseM').addEventListener('click', function(e){
+    e.stopPropagation();
+    if (state.mode === 'play') doPause();
+  });
+}
+
+var mouseLocked = false;
+var lockHint = document.getElementById('lockHint');
+
+document.addEventListener('keydown', function(e){
+  keys[e.code] = true;
+  if (e.code === 'Escape' && state.mode === 'play') doPause();
+  if (e.code === 'Space') e.preventDefault();
+});
+document.addEventListener('keyup', function(e){ keys[e.code] = false; });
+
+canvas.addEventListener('click', function(){
+  if (!IS_MOB && state.mode === 'play' && !mouseLocked){
+    if (canvas.requestPointerLock) canvas.requestPointerLock();
+  }
+});
+document.addEventListener('pointerlockchange', function(){
+  mouseLocked = (document.pointerLockElement === canvas);
+  if (state.mode === 'play') lockHint.classList.toggle('on', !mouseLocked);
+});
+document.addEventListener('mousemove', function(e){
+  if (IS_MOB || !mouseLocked || state.mode !== 'play') return;
+  var s = 0.0022;
+  player.yaw -= e.movementX * s;
+  player.pitch -= e.movementY * s;
+  var lim = Math.PI/2 - 0.01;
+  if (player.pitch > lim) player.pitch = lim;
+  if (player.pitch < -lim) player.pitch = -lim;
+});
+document.addEventListener('mousedown', function(e){
+  if (IS_MOB) return;
+  if (e.button !== 0 || state.mode !== 'play' || !mouseLocked) return;
+  mineAtCrosshair();
+});
+
+// ============================================================
+//   ОБНОВЛЕНИЕ ФИЗИКИ
+// ============================================================
+function updatePhysics(dt){
+  var mx = 0, mz = 0;
+  if (IS_MOB){
+    mx = input.mx; mz = input.my;
+    if (input.lookX !== 0 || input.lookY !== 0){
+      var s = 0.005;
+      player.yaw -= input.lookX * s;
+      player.pitch -= input.lookY * s;
+      var lim = Math.PI/2 - 0.01;
+      if (player.pitch > lim) player.pitch = lim;
+      if (player.pitch < -lim) player.pitch = -lim;
+      input.lookX = 0; input.lookY = 0;
+    }
+  } else {
+    if (keys['KeyW']) mz += 1;
+    if (keys['KeyS']) mz -= 1;
+    if (keys['KeyA']) mx -= 1;
+    if (keys['KeyD']) mx += 1;
+    if (keys['Space'] && player.onGround){
+      player.vy = JUMP_SPEED;
+      player.onGround = false;
+    }
+  }
+
+  var speed = (keys['ShiftLeft'] && !IS_MOB) ? RUN_SPEED : MOVE_SPEED;
+  var fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
+  var rx =  Math.cos(player.yaw), rz = -Math.sin(player.yaw);
+
+  var vx = fx*mz + rx*mx;
+  var vz = fz*mz + rz*mx;
+  var len = Math.sqrt(vx*vx+vz*vz);
+  if (len > 1){ vx /= len; vz /= len; }
+
+  var dx = vx * speed * dt;
+  var dz = vz * speed * dt;
+
+  // === Движение по X/Z с автоподъёмом на ступеньку ===
+  if (dx !== 0){
+    var resX = tryMoveWithStepUp(player.pos, dx, 0);
+    if (resX){
+      player.pos.x = resX.x;
+      player.pos.y = resX.y;
+    }
+  }
+  if (dz !== 0){
+    var resZ = tryMoveWithStepUp(player.pos, 0, dz);
+    if (resZ){
+      player.pos.z = resZ.z;
+      player.pos.y = resZ.y;
+    }
+  }
+
+  // === Гравитация ===
+  player.vy -= GRAVITY * dt;
+  if (player.vy < -MAX_FALL) player.vy = -MAX_FALL;
+
+  // === Движение по Y ===
+  var dy = player.vy * dt;
+  var newY = player.pos.y + dy;
+  var testY = player.pos.clone();
+  testY.y = newY;
+
+  if (canMove(testY)){
+    player.pos.y = newY;
+    // Проверка "на земле"
+    var below = player.pos.clone();
+    below.y -= 0.05;
+    if (player.vy <= 0 && !canMove(below)){
+      player.onGround = true;
+      // Прижимаем к сетке
+      player.pos.y = Math.round(player.pos.y * 1000) / 1000;
+      player.pos.y = Math.round(player.pos.y);
+      player.vy = 0;
+    } else {
+      player.onGround = false;
+    }
+  } else {
+    if (player.vy < 0){
+      // Приземлились — на верхнюю грань блока
+      player.pos.y = Math.ceil(player.pos.y);
+      player.vy = 0;
+      player.onGround = true;
+    } else if (player.vy > 0){
+      // Потолок
+      player.pos.y = Math.floor(player.pos.y) - 0.001;
+      player.vy = 0;
+      player.onGround = false;
+    }
+  }
+
+  camera.position.copy(player.pos);
+  camera.position.y = player.pos.y + player.h * 0.9;
+  playerLight.position.copy(player.pos);
+
+  sun.position.set(player.pos.x + 40, player.pos.y + 80, player.pos.z + 30);
+  sun.target.position.copy(player.pos);
+  sun.target.updateMatrixWorld();
+
+  var e = new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ');
+  camera.quaternion.setFromEuler(e);
+
+  chunkTimer += dt;
+  if (chunkTimer > 0.3){
+    chunkTimer = 0;
+    updateChunks(player.pos.x, player.pos.z);
+  }
+}
+
+// ============================================================
+//   RAYCAST
+// ============================================================
+var currentTargetData = null;
+var uiTimer = 0;
+
+function raycastVoxel(origin, dir, maxDist){
+  var stepX = dir.x > 0 ? 1 : -1;
+  var stepY = dir.y > 0 ? 1 : -1;
+  var stepZ = dir.z > 0 ? 1 : -1;
+  var tDeltaX = Math.abs(1 / dir.x); if (!isFinite(tDeltaX)) tDeltaX = 1e9;
+  var tDeltaY = Math.abs(1 / dir.y); if (!isFinite(tDeltaY)) tDeltaY = 1e9;
+  var tDeltaZ = Math.abs(1 / dir.z); if (!isFinite(tDeltaZ)) tDeltaZ = 1e9;
+
+  var gx = Math.floor(origin.x / BS);
+  var gy = Math.floor(origin.y / BS);
+  var gz = Math.floor(origin.z / BS);
+
+  if (hasBlock(gx, gy, gz)) return { gx: gx, gy: gy, gz: gz, type: getBlockAt(gx,gy,gz) };
+
+  var tMaxX = ((stepX > 0 ? (gx + 1) * BS : gx * BS) - origin.x) / dir.x;
+  var tMaxY = ((stepY > 0 ? (gy + 1) * BS : gy * BS) - origin.y) / dir.y;
+  var tMaxZ = ((stepZ > 0 ? (gz + 1) * BS : gz * BS) - origin.z) / dir.z;
+  if (!isFinite(tMaxX)) tMaxX = 1e9;
+  if (!isFinite(tMaxY)) tMaxY = 1e9;
+  if (!isFinite(tMaxZ)) tMaxZ = 1e9;
+
+  var t = 0;
+  var iter = 0;
+  while (t < maxDist && iter < 100){
+    iter++;
+    if (tMaxX < tMaxY){
+      if (tMaxX < tMaxZ){ gx += stepX; t = tMaxX; tMaxX += tDeltaX; }
+      else { gz += stepZ; t = tMaxZ; tMaxZ += tDeltaZ; }
+    } else {
+      if (tMaxY < tMaxZ){ gy += stepY; t = tMaxY; tMaxY += tDeltaY; }
+      else { gz += stepZ; t = tMaxZ; tMaxZ += tDeltaZ; }
+    }
+    if (gy < BEDROCK_Y - 2 || gy > 60) continue;
+    var blockType = getBlockAt(gx, gy, gz);
+    if (blockType) return { gx: gx, gy: gy, gz: gz, type: blockType };
+  }
+  return null;
+}
+
+function updateTarget(dt){
+  uiTimer += dt;
+  if (uiTimer < 0.05) return;
+  uiTimer = 0;
+
+  var origin = camera.position.clone();
+  var dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  var hit = raycastVoxel(origin, dir, 6);
+
+  if (hit){
+    var hp = getBlockHP(hit.gx, hit.gy, hit.gz);
+    if (hp === null) hp = BLOCK_TYPES[hit.type].hp;
+    if (!currentTargetData ||
+        currentTargetData.gx !== hit.gx ||
+        currentTargetData.gy !== hit.gy ||
+        currentTargetData.gz !== hit.gz){
+      currentTargetData = {
+        gx: hit.gx, gy: hit.gy, gz: hit.gz,
+        type: hit.type, hp: hp, maxHp: BLOCK_TYPES[hit.type].hp
+      };
+      renderTargetUI();
+    } else {
+      currentTargetData.hp = hp;
+      updateHpBar();
+    }
+  } else {
+    if (currentTargetData){
+      currentTargetData = null;
+      renderTargetUI();
+    }
+  }
+}
+
+function renderTargetUI(){
+  var info = document.getElementById('targetInfo');
+  var hp = document.getElementById('hpWrap');
+  if (currentTargetData && BLOCK_TYPES[currentTargetData.type]){
+    var d = currentTargetData;
+    var t = BLOCK_TYPES[d.type];
+    info.textContent = t.icon + ' ' + t.name;
+    info.classList.add('on');
+    if (d.type === 'bedrock') hp.classList.remove('on');
+    else { hp.classList.add('on'); updateHpBar(); }
+  } else {
+    info.classList.remove('on');
+    hp.classList.remove('on');
+  }
+}
+function updateHpBar(){
+  if (!currentTargetData) return;
+  var d = currentTargetData;
+  if (!d || !d.maxHp) return;
+  var pct = Math.max(0, d.hp / d.maxHp * 100);
+  var fill = document.getElementById('hpFill');
+  fill.style.width = pct + '%';
+  if (pct > 60) fill.style.background = 'linear-gradient(90deg,#9bff9b,#3ba13b)';
+  else if (pct > 30) fill.style.background = 'linear-gradient(90deg,#f9e076,#b87c1b)';
+  else fill.style.background = 'linear-gradient(90deg,#ff8a8a,#a12b2b)';
+}
+
+function getDamage(){ return 1 + (state.level - 1); }
+
+function mineAtCrosshair(){
+  if (state.mode !== 'play') return;
+  if (!currentTargetData) return;
+  var d = currentTargetData;
+  if (!d || !d.type || !BLOCK_TYPES[d.type]) return;
+  if (d.type === 'bedrock'){ showToast('🟫 Бедрок не сломать!'); return; }
+
+  var curHp = getBlockHP(d.gx, d.gy, d.gz);
+  if (curHp === null) curHp = BLOCK_TYPES[d.type].hp;
+  var newHp = curHp - getDamage();
+
+  if (newHp <= 0){
+    var t = BLOCK_TYPES[d.type];
+    state.money += t.reward;
+    state.mined += 1;
+    showToast('✨ ' + t.name + ' +' + t.reward + ' 🪙');
+    setBlockAt(d.gx, d.gy, d.gz, null);
+    delBlockHP(d.gx, d.gy, d.gz);
+    rebuildChunkAt(d.gx, d.gz);
+    currentTargetData = null;
+    renderTargetUI();
+    updateHUD();
+    save();
+  } else {
+    setBlockHP(d.gx, d.gy, d.gz, newHp);
+    d.hp = newHp;
+    updateHpBar();
+  }
+}
+
+// ============================================================
+//   HUD
+// ============================================================
+function updateHUD(){
+  document.getElementById('uiMoney').textContent = state.money;
+  document.getElementById('uiLevel').textContent = state.level;
+  document.getElementById('uiDamage').textContent = getDamage();
+  var depth = Math.max(0, Math.round((SURFACE_Y*BS + BS/2) - player.pos.y));
+  document.getElementById('uiDepth').textContent = depth + 'м';
+  document.getElementById('uiPos').textContent =
+    Math.round(player.pos.x / BS) + ',' + Math.round(player.pos.z / BS);
+}
+
+var toastTimer = null;
+function showToast(text){
+  var el = document.getElementById('toast');
+  el.textContent = text;
+  el.classList.add('on');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.classList.remove('on'); }, 1200);
+}
+
+// ============================================================
+//   СОХРАНЕНИЕ
+// ============================================================
+function save(){
+  try {
+    localStorage.setItem('shaft3d', JSON.stringify({
+      money: state.money, level: state.level, mined: state.mined
+    }));
+  } catch(e){}
+}
+function load(){
+  try {
+    var raw = localStorage.getItem('shaft3d');
+    if (!raw) return false;
+    var d = JSON.parse(raw);
+    state.money = d.money || 0;
+    state.level = d.level || 1;
+    state.mined = d.mined || 0;
+    return true;
+  } catch(e){ return false; }
+}
+function hasSave(){
+  try { return !!localStorage.getItem('shaft3d'); } catch(e){ return false; }
+}
+
+// ============================================================
+//   РЕЖИМЫ
+// ============================================================
+function startGame(fromSave){
+  if (!fromSave){
+    state.money = 0; state.level = 1; state.mined = 0;
+    for (var key in chunks){
+      var c = chunks[key];
+      if (c.mesh){
+        for (var i = 0; i < c.mesh.length; i++){
+          scene.remove(c.mesh[i]);
+          c.mesh[i].geometry.dispose();
+        }
+      }
+    }
+    chunks = {};
+    chunkKeys = [];
+    blockHP = {};
+  }
+
+  player.pos.set(0.5, 60, 0.5);
+  player.vy = 0; player.yaw = 0; player.pitch = 0;
+  updateChunks(0, 0);
+
+  var sy = findSpawnY(0, 0);
+  player.pos.set(0.5, sy, 0.5);
+  player.onGround = true;
+
+  state.mode = 'play';
+  document.getElementById('menu').classList.add('hide');
+  document.getElementById('hud').classList.add('on');
+  document.getElementById('pause').classList.remove('on');
+  if (IS_MOB) document.getElementById('mob').classList.add('on');
+  else lockHint.classList.add('on');
+  updateHUD();
+}
+
+function doPause(){
+  state.mode = 'pause';
+  document.getElementById('pause').classList.add('on');
+  lockHint.classList.remove('on');
+  if (document.pointerLockElement) document.exitPointerLock();
+  save();
+}
+function doResume(){
+  state.mode = 'play';
+  document.getElementById('pause').classList.remove('on');
+  if (!IS_MOB) lockHint.classList.add('on');
+}
+function doMenu(){
+  state.mode = 'menu';
+  document.getElementById('pause').classList.remove('on');
+  document.getElementById('hud').classList.remove('on');
+  document.getElementById('menu').classList.remove('hide');
+  document.getElementById('mob').classList.remove('on');
+  lockHint.classList.remove('on');
+  if (document.pointerLockElement) document.exitPointerLock();
+  document.getElementById('contBtn').disabled = !hasSave();
+}
+
+document.getElementById('playBtn').addEventListener('click', function(e){
+  e.preventDefault();
+  if (hasSave() && !confirm('Начать заново? Прогресс удалится.')) return;
+  try { localStorage.removeItem('shaft3d'); } catch(err){}
+  startGame(false);
+});
+document.getElementById('contBtn').addEventListener('click', function(e){
+  e.preventDefault();
+  if (!load()) return;
+  startGame(true);
+});
+document.getElementById('resumeBtn').addEventListener('click', function(e){
+  e.preventDefault();
+  doResume();
+});
+document.getElementById('menuBtn').addEventListener('click', function(e){
+  e.preventDefault();
+  doMenu();
+});
+document.getElementById('contBtn').disabled = !hasSave();
+
+if (IS_MOB) setupMobile();
+updateChunks(0, 0);
+updateHUD();
+
+var last = performance.now();
+var fpsEl = document.getElementById('fps');
+var frameCount = 0, fpsTime = 0;
+
+function loop(now){
+  requestAnimationFrame(loop);
+  var dt = (now - last) / 1000;
+  last = now;
+  if (dt > 0.1) dt = 0.1;
+
+  frameCount++; fpsTime += dt;
+  if (fpsTime >= 1){
+    fpsEl.textContent = frameCount + ' FPS';
+    fpsEl.style.display = 'block';
+    frameCount = 0; fpsTime = 0;
+  }
+
+  if (state.mode === 'play'){
+    updatePhysics(dt);
+    updateTarget(dt);
+    updateHUD();
+  } else if (state.mode === 'menu'){
+    player.yaw += dt * 0.15;
+    var radius = 12;
+    camera.position.set(
+      Math.sin(player.yaw) * radius,
+      SURFACE_Y * BS + 6,
+      Math.cos(player.yaw) * radius
+    );
+    var e = new THREE.Euler(-0.4, player.yaw + Math.PI, 0, 'YXZ');
+    camera.quaternion.setFromEuler(e);
+    sun.position.set(40, 80, 30);
+    sun.target.position.set(0, 0, 0);
+    sun.target.updateMatrixWorld();
+  }
+
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+
+window.addEventListener('resize', function(){
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+setInterval(function(){ if (state.mode === 'play') save(); }, 10000);
+window.addEventListener('beforeunload', function(){ if (state.mode === 'play') save(); });
+window.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+
+}
+</script>
+</body>
+  </html>
